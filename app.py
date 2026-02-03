@@ -1565,7 +1565,10 @@ def main():
 
         # Get API key from secrets or user input
         # For Streamlit Cloud: Add your API key in Settings > Secrets as OPENAI_API_KEY="your-key"
-        default_key = st.secrets.get("OPENAI_API_KEY", "") if hasattr(st, "secrets") else ""
+        try:
+            default_key = st.secrets.get("OPENAI_API_KEY", "")
+        except (FileNotFoundError, KeyError):
+            default_key = ""
         api_key = st.sidebar.text_input(
             "OpenAI API Key",
             value=default_key,
