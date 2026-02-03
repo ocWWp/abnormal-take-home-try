@@ -1,0 +1,89 @@
+﻿PRD: Combridge AI
+1. TL;DR
+Combridge AI is an internal, AI-powered synthesis tool that watches the chaos of a live incident — Slack war rooms, raw logs, Prometheus dashboards — and automatically drafts clear, empathetic, brand-consistent customer-facing status updates in real time. It is built for Incident Commanders and Technical Support Leads who, during a SEV-1 or SEV-2 event, simply do not have the bandwidth to context-switch from firefighting to writing. Combridge closes the communication gap between our internal war room and our external status page before customers ever notice the silence.
+________________
+
+
+2. Goals
+Business Goals
+* Reduce the average time between an alert trigger and the first customer-facing status update by 50%, directly improving our SLA compliance posture and customer trust during incidents.
+* Establish a consistently high-quality, brand-aligned communication standard across all incident responses, regardless of which engineer or support lead is on call.
+* Lower the cognitive load on engineering teams during critical incidents, freeing them to focus on resolution rather than external communication.
+* Generate a retrospective-ready audit trail of all incident communications, supporting post-incident reviews and customer relationship management.
+User Goals
+* Incident Commanders want to stay in "fix mode" without worrying about whether customers are being kept informed.
+* Technical Support Leads want a tool that translates the technical noise into plain, empathetic language they can understand, review, and publish with confidence — without needing a PhD in distributed systems.
+* Both user groups want to trust that every draft that surfaces is accurate, consistent in tone, and safe to send with minimal review.
+Non-Goals
+* Combridge AI will not fully automate the publishing of customer-facing updates. A human must approve every draft before it goes live. This is a drafting and synthesis tool, not an autonomous communication system.
+* It will not replace the incident response process itself — no triaging, no root-cause analysis, no incident management workflow changes.
+* It will not serve as a general-purpose chatbot or be exposed to end customers directly.
+* It will not ingest or process data sources outside the defined scope (e.g., PagerDuty alert bodies, internal wiki pages, or email threads) in this initial release.
+________________
+
+
+3. User Stories
+Persona A: Maya, Incident Commander (Senior SRE)
+Maya is 45 minutes into a SEV-1 database failover. Her Slack channel has 200 messages. Her job right now is to get the primary replica back online. She has not thought once about the status page. When Combridge surfaces a draft update — accurate, calm, and already staged as "Investigating" — she glances at it, approves it in one click, and gets back to the terminal. She never had to context-switch.
+Persona B: Jordan, Technical Support Lead
+Jordan is watching the war room unfold in real time but cannot parse what "p99 latency exceeding 4x baseline on the auth service" actually means for the customers filing tickets right now. Combridge hands Jordan a draft that reads: "We are aware of a performance issue affecting login times. Our engineering team has identified the cause and is actively working on a resolution." Jordan understands it, trusts it, and publishes it.
+________________
+
+
+4. Functional Requirements
+Priority 1 — Core (MVP)
+Multi-Source Ingestion: The system must connect to and ingest data from three defined sources: structured JSON application logs, Prometheus metric streams (with configurable alert thresholds), and exported or real-time Slack channel transcripts from designated war room channels. Ingestion must be low-latency, targeting updates within a 60-second window of new source data arriving.
+Incident Synthesis Engine: An internal processing layer must parse the ingested data to automatically extract the key incident facts: what service or component is affected (the What), which user-facing capabilities are impacted (the Who), and the timeline of events as they occur (the When). This layer is the bridge between raw data and the LLM.
+Customer-Speak Translation (LLM Layer): A fine-tuned or prompt-engineered LLM must take the structured incident summary from the synthesis engine and generate a customer-facing draft. The output must strip all internal jargon, adhere to the Abnormal Security brand voice (clear, empathetic, confident without being dismissive), and be factually grounded in the ingested data — no hallucinated details.
+Status-Stage Drafting: The system must automatically generate drafts mapped to four canonical incident stages: Investigating, Identified, Monitoring, and Resolved. Drafts should update or regenerate as the stage progresses, and the tool must clearly indicate which stage each draft corresponds to.
+Priority 2 — Refinement (Post-MVP)
+Human Review & Approval Workflow: A lightweight, single-click approval interface for the on-call Incident Commander or Support Lead. The interface must show the draft, the source data summary that informed it, and a clear "Approve & Publish" or "Edit" action. No draft publishes without explicit human sign-off.
+Confidence and Source Transparency: Each generated draft should include a lightweight indicator — visible to the reviewer — showing which data sources contributed to the update and a confidence signal flagging if the synthesis is working with limited or ambiguous information.
+Priority 3 — Future Consideration
+* Direct integration with the status page API to publish approved drafts with zero manual copy-paste.
+* Configurable brand voice profiles to support multi-product or multi-tenant environments.
+* Post-incident analytics dashboard surfacing draft acceptance rates, edit patterns, and TTFU trends over time.
+________________
+
+
+5. User Experience
+* Ambient, not intrusive: Combridge operates as a background layer during an active incident. It does not demand attention — it surfaces drafts as notifications or within a lightweight side panel accessible from the war room Slack channel itself, so the user never has to leave their current context.
+* The review moment is fast: The approval screen shows the draft on the left, a collapsible summary of supporting source data on the right. The only required actions are Approve, Edit, or Dismiss. Target interaction time at this screen: under 30 seconds.
+* Stage progression is clear: A simple, linear stage indicator (Investigating → Identified → Monitoring → Resolved) is always visible, with the current stage highlighted and the latest draft for that stage ready for review.
+* Edge case — low-confidence synthesis: If the system cannot confidently extract key facts (e.g., Slack is noisy but logs are sparse), the draft is flagged with a visible warning: "This draft was generated with limited data. Please review carefully before approving." The draft is still surfaced but is never auto-escalated to "ready to publish" state.
+* Edge case — no new data: If no meaningful new data arrives for a defined window (e.g., 10 minutes during an active incident), the system prompts the reviewer: "No new updates detected. Would you like to resend the current status?" This prevents stale silence on the customer page.
+* Edge case — stage ambiguity: If signals conflict (e.g., a Prometheus alert resolves but Slack discussion indicates the issue is recurring), the system defaults to the more cautious stage and flags the discrepancy for human review.
+________________
+
+
+6. Narrative
+It is 2:17 AM. A Prometheus alert fires: p99 latency on the authentication service has spiked to 4x baseline. Within seconds, PagerDuty pages Maya. Within a minute, the SEV-1 war room Slack channel is alive — engineers pasting log snippets, someone posting a hypothesis about a bad deployment, another person pulling up a dashboard.
+Maya does not think about the status page. She is already deep in the logs, coordinating with two other engineers on a potential rollback.
+Quietly, in the background, Combridge has been listening. It ingested the Prometheus alert the moment it fired. It is reading the Slack channel in real time. It cross-referenced a log export that an engineer just pasted. Thirty seconds ago, it finished its first synthesis pass.
+A notification appears at the top of Maya's Slack channel — unobtrusive, clearly labeled. "Combridge has a draft ready for the 'Investigating' stage. Tap to review."
+Maya taps. The draft reads: "We are currently investigating a performance issue that may be affecting authentication response times. We will provide an update as soon as we have more information. We appreciate your patience." Underneath the draft, a small note: "Based on: Prometheus alert (auth-service), Slack thread (2:17–2:19 AM), application logs (last 5 min)."
+It is accurate. It is calm. It sounds like Abnormal Security. Maya approves it in one click and is back in the terminal in under fifteen seconds.
+Forty minutes later, the team identifies the root cause. Combridge detects the shift in Slack — someone types "we found it" — and cross-references a new log entry that confirms the bad deployment. It drafts an Identified stage update. Jordan, the support lead who has been monitoring the war room, gets the notification this time. He reads it, nods, and publishes it.
+By the time the rollback is complete and the metrics stabilize, Combridge has already drafted the Resolved update. The customer status page tells a clear, coherent story. The engineering team told no part of it — and that is exactly the point.
+________________
+
+
+7. Success Metrics
+* Time to First Update (TTFU): The primary metric. Measured as the elapsed time between "Alert Triggered" (Prometheus or equivalent) and "First Customer-Facing Status Post Live." Target: a 50% reduction from current baseline within the first 90 days of production rollout.
+* Draft Acceptance Rate: The percentage of Combridge-generated drafts that are approved and published with zero or minimal edits (defined as fewer than 10 words changed). Target: 70% or higher within the first quarter, trending toward 80%+ as the model is tuned on feedback.
+* Consistency Score: A recurring qualitative audit (bi-weekly, conducted by the brand or comms team) evaluating published Combridge-assisted updates against three criteria: Clarity (is the update immediately understandable to a non-technical reader?), Brevity (does it say what it needs to say without excess?), and Empathy (does it acknowledge the customer's experience?). Target: 90%+ of audited updates rated as meeting all three criteria.
+* Time-to-Review: The average time an on-call engineer or support lead spends in the Combridge review screen before taking an action. Target: under 30 seconds, validating that the tool is genuinely reducing friction rather than adding a new step.
+________________
+
+
+8. Milestones & Sequencing
+Phase 1 — Foundation (Weeks 1–3)
+Stand up the ingestion pipeline. Connect to Prometheus, define the Slack channel integration (read-only, designated war room channels only), and establish the JSON log intake contract with the application teams. No LLM work yet — this phase is about reliable, low-latency data flow. Define the initial prompt engineering strategy and brand voice guidelines for the LLM layer in parallel.
+Phase 2 — Synthesis & Translation (Weeks 4–6)
+Build the incident synthesis engine that extracts What, Who, and When from the ingested data. Wire it into the LLM layer. Begin generating draft outputs in a staging environment. Run internal smoke tests using replayed historical incident data to validate accuracy and tone. Iterate on prompts aggressively.
+Phase 3 — The Review Surface (Weeks 7–8)
+Build the lightweight approval UI — the Slack-native notification, the side-panel review screen, and the stage indicator. Integrate the confidence and source transparency signals. This is the user-facing moment, so usability testing with actual Incident Commanders and Support Leads happens here.
+Phase 4 — Pilot (Weeks 9–11)
+Deploy to a single on-call rotation in a shadow mode: Combridge generates and surfaces drafts, but no drafts are published without a designated reviewer's explicit approval. Collect TTFU, acceptance rate, and review-time data. Gather qualitative feedback. Fix what breaks.
+Phase 5 — Measure & Expand (Weeks 12–14)
+Analyze pilot data against success metrics. Tune the model and prompts based on edit patterns and reviewer feedback. If acceptance rate and TTFU targets are trending positively, expand to all on-call rotations. Begin scoping the direct status page API integration for the next roadmap cycle.
